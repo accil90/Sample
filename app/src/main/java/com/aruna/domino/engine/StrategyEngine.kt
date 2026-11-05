@@ -51,7 +51,9 @@ data class MoveScore(
     val pipReduction: Int,
     val flexibility: Int,
     /** Estimated chance (0..1) that at least one opponent can answer the new end. */
-    val opponentPressure: Double
+    val opponentPressure: Double,
+    /** Estimated chance (0..1) that our remaining hand can play again after one opponent round. */
+    val futurePlayChance: Double
 )
 
 data class StrategyResult(
@@ -99,14 +101,20 @@ class StrategyEngine {
                 tile.contains(nextLeft) || tile.contains(nextRight)
             }
             val pressure = estimateOpponentPressure(nextPip, unseen, state)
+            val futurePlayChance = forecastFuturePlayChance(
+                move = move,
+                remainingHand = remainingHand,
+                unseen = unseen,
+                state = state
+            )
             val pipReduction = move.tile.pips
             val doubleBonus = if (move.tile.isDouble) 0.35 else 0.0
 
             // Prefer shedding pips and preserving playable options, while avoiding
             // opening an end opponents are statistically likely to hold.
             val score = pipReduction * 1.0 + flexibility * 0.7 -
-                pressure * 1.2 + doubleBonus
-            MoveScore(move, score, pipReduction, flexibility, pressure)
+                pressure * 1.2 + futurePlayChance * 0.8 + doubleBonus
+            MoveScore(move, score, pipReduction, flexibility, pressure, futurePlayChance)
         }.sortedWith(
             compareByDescending<MoveScore> { it.score }
                 .thenByDescending { it.pipReduction }
@@ -121,6 +129,88 @@ class StrategyEngine {
             alternatives = scored.drop(1).take(3),
             legalMoves = legal
         )
+    }
+
+    /**
+     * Reproducible Monte Carlo look-ahead. It deals only the opponent hand sizes
+     * explicitly supplied by the caller, simulates one greedy turn per opponent,
+     * then checks whether our remaining hand has a legal reply.
+     *
+     * If hand sizes are incomplete or pass constraints make sampled deals rare,
+     * the forecast falls back to the known-hand flexibility heuristic.
+     */
+    private fun forecastFuturePlayChance(
+        move: LegalMove,
+        remainingHand: List<Tile>,
+        unseen: Set<Tile>,
+        state: GameSnapshot
+    ): Double {
+        if (state.playerHandCounts.isEmpty() || remainingHand.isEmpty()) {
+            return if (remainingHand.any {
+                it.contains(if (move.side == Side.LEFT) move.tile.otherEnd(move.exposedPip)!! else state.leftEnd) ||
+                    it.contains(if (move.side == Side.RIGHT) move.tile.otherEnd(move.exposedPip)!! else state.rightEnd)
+            }) 1.0 else 0.0
+        }
+
+        val players = state.playerHandCounts.toSortedMap().filterValues { it > 0 }
+        if (players.isEmpty()) return 0.0
+        val required = players.values.sum()
+        if (required > unseen.size) return 0.0
+
+        val nextPip = move.tile.otherEnd(move.exposedPip) ?: move.exposedPip
+        var left = if (move.side == Side.LEFT) nextPip else state.leftEnd
+        var right = if (move.side == Side.RIGHT) nextPip else state.rightEnd
+        val seed = (state.played.size * 31L + move.tile.low * 17L +
+            move.tile.high * 13L + move.side.ordinal).toLong()
+        val random = Random(seed)
+        val samples = 256
+        var valid = 0
+        var ourNextTurnPlayable = 0
+
+        repeat(samples) {
+            val shuffled = unseen.toMutableList()
+            java.util.Collections.shuffle(shuffled, random)
+            var offset = 0
+            val hands = linkedMapOf<Int, MutableList<Tile>>()
+            players.forEach { (player, count) ->
+                hands[player] = shuffled.subList(offset, offset + count).toMutableList()
+                offset += count
+            }
+
+            val respectsPasses = hands.all { (player, hand) ->
+                state.passes.filter { it.player == player }.all { pass ->
+                    hand.none { it.contains(pass.leftEnd) || it.contains(pass.rightEnd) }
+                }
+            }
+            if (!respectsPasses) return@repeat
+            valid++
+
+            var simLeft = left
+            var simRight = right
+            hands.values.forEach { hand ->
+                val playable = hand.filter { it.contains(simLeft) || it.contains(simRight) }
+                val chosen = playable.maxWithOrNull(
+                    compareBy<Tile> { it.pips }.thenBy { it.low }.thenBy { it.high }
+                )
+                if (chosen != null) {
+                    hand.remove(chosen)
+                    when {
+                        chosen.contains(simLeft) -> simLeft = chosen.otherEnd(simLeft) ?: simLeft
+                        chosen.contains(simRight) -> simRight = chosen.otherEnd(simRight) ?: simRight
+                    }
+                }
+            }
+            if (remainingHand.any { it.contains(simLeft) || it.contains(simRight) }) {
+                ourNextTurnPlayable++
+            }
+        }
+
+        return if (valid == 0) {
+            remainingHand.count { it.contains(left) || it.contains(right) }
+                .toDouble() / remainingHand.size
+        } else {
+            (ourNextTurnPlayable.toDouble() / valid).coerceIn(0.0, 1.0)
+        }
     }
 
     private fun estimateOpponentPressure(
