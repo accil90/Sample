@@ -138,28 +138,37 @@ class StrategyEngine {
             .map { it.player }
             .toSet()
 
-        val totalKnownSlots = state.playerHandCounts.values.sum()
+        val matchingTiles = unseen.count { it.contains(exposedPip) }
+        val nonMatching = unseen.size - matchingTiles
+        val voidSlots = if (state.playerHandCounts.isEmpty()) 0 else {
+            state.playerHandCounts
+                .filterKeys { it in playersKnownVoidOnPip }
+                .values
+                .sum()
+        }
         val activeSlots = if (state.playerHandCounts.isEmpty()) {
             unseen.size
         } else {
-            state.playerHandCounts
-                .filterKeys { it !in playersKnownVoidOnPip }
-                .values
-                .sum()
+            state.playerHandCounts.values.sum() - voidSlots
         }.coerceIn(0, unseen.size)
 
         if (activeSlots == 0) return 0.0
 
-        val matchingTiles = unseen.count { it.contains(exposedPip) }
-        val nonMatching = unseen.size - matchingTiles
+        // Condition on void players holding only non-matching tiles. Remove those
+        // slots from both the unseen pool and its non-matching portion before
+        // estimating whether the remaining players can answer.
+        val remainingPool = (unseen.size - voidSlots).coerceAtLeast(0)
+        val remainingNonMatching = (nonMatching - voidSlots).coerceAtLeast(0)
+        if (remainingPool == 0) return 0.0
+
         var noMatchProbability = 1.0
-        repeat(activeSlots) { index ->
-            val remaining = unseen.size - index
-            val remainingNonMatching = nonMatching - index
-            if (remainingNonMatching <= 0) {
+        repeat(activeSlots.coerceAtMost(remainingPool)) { index ->
+            val poolLeft = remainingPool - index
+            val nonMatchingLeft = remainingNonMatching - index
+            if (nonMatchingLeft <= 0) {
                 noMatchProbability = 0.0
             } else {
-                noMatchProbability *= remainingNonMatching.toDouble() / remaining
+                noMatchProbability *= nonMatchingLeft.toDouble() / poolLeft
             }
         }
 
