@@ -62,7 +62,8 @@ data class StrategyResult(
 
 /**
  * Offline-first heuristic strategy. Hidden opponent tiles are estimates, never known facts.
- * This baseline uses the remaining unseen set and known opponent hand sizes.
+ * Passes are used conservatively: only a pass recorded at the current played-tile count
+ * constrains a candidate end, because later turns may have changed the board.
  */
 class StrategyEngine {
     fun analyze(state: GameSnapshot): StrategyResult {
@@ -72,6 +73,14 @@ class StrategyEngine {
             "A tile cannot be both held and played"
         }
         require(state.playerHandCounts.values.all { it >= 0 }) { "Hand sizes cannot be negative" }
+        require(state.playerHandCounts.values.sum() <=
+            (Tile.fullSet() - state.played - state.hand.toSet()).size) {
+            "Opponent hand sizes exceed the number of unseen tiles"
+        }
+        require(state.passes.all {
+            it.leftEnd in 0..6 && it.rightEnd in 0..6 &&
+                it.playedCountAtPass in 0..state.played.size
+        }) { "Pass record contains invalid board data" }
 
         val legal = state.hand.flatMap { tile ->
             buildList {
@@ -94,7 +103,7 @@ class StrategyEngine {
             val doubleBonus = if (move.tile.isDouble) 0.35 else 0.0
 
             // Prefer shedding pips and preserving playable options, while avoiding
-            // opening an end that opponents are statistically likely to hold.
+            // opening an end opponents are statistically likely to hold.
             val score = pipReduction * 1.0 + flexibility * 0.7 -
                 pressure * 1.2 + doubleBonus
             MoveScore(move, score, pipReduction, flexibility, pressure)
@@ -102,6 +111,9 @@ class StrategyEngine {
             compareByDescending<MoveScore> { it.score }
                 .thenByDescending { it.pipReduction }
                 .thenByDescending { it.flexibility }
+                .thenBy { it.move.tile.low }
+                .thenBy { it.move.tile.high }
+                .thenBy { it.move.side.ordinal }
         )
 
         return StrategyResult(
@@ -118,17 +130,30 @@ class StrategyEngine {
     ): Double {
         if (unseen.isEmpty()) return 0.0
 
-        val matchingTiles = unseen.count { it.contains(exposedPip) }
-        val unknownSlots = state.playerHandCounts.values.sum()
-            .takeIf { it > 0 }
-            ?: unseen.size
-        val slots = unknownSlots.coerceIn(0, unseen.size)
+        // A player who passed on the current board had neither open-end value.
+        // Only exact-current-board passes are applied; stale passes are ignored.
+        val playersKnownVoidOnPip = state.passes
+            .filter { it.playedCountAtPass == state.played.size }
+            .filter { it.leftEnd == exposedPip || it.rightEnd == exposedPip }
+            .map { it.player }
+            .toSet()
 
-        // Probability that at least one of the unknown opponent-held tiles
-        // contains this pip, using sampling without replacement.
-        var noMatchProbability = 1.0
+        val totalKnownSlots = state.playerHandCounts.values.sum()
+        val activeSlots = if (state.playerHandCounts.isEmpty()) {
+            unseen.size
+        } else {
+            state.playerHandCounts
+                .filterKeys { it !in playersKnownVoidOnPip }
+                .values
+                .sum()
+        }.coerceIn(0, unseen.size)
+
+        if (activeSlots == 0) return 0.0
+
+        val matchingTiles = unseen.count { it.contains(exposedPip) }
         val nonMatching = unseen.size - matchingTiles
-        repeat(slots) { index ->
+        var noMatchProbability = 1.0
+        repeat(activeSlots) { index ->
             val remaining = unseen.size - index
             val remainingNonMatching = nonMatching - index
             if (remainingNonMatching <= 0) {
@@ -137,6 +162,8 @@ class StrategyEngine {
                 noMatchProbability *= remainingNonMatching.toDouble() / remaining
             }
         }
+
+        // Keep the result bounded even if hand-size information is incomplete.
         return (1.0 - noMatchProbability).coerceIn(0.0, 1.0)
     }
 }
