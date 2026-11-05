@@ -129,4 +129,20 @@ class StrategyEngineTest {
         assertTrue(result.best!!.opponentPressure < 1.0)
     }
 
+    @Test fun monteCarloForecastIsBoundedAndDeterministic() {
+        val state = GameSnapshot(
+            hand = listOf(Tile.of(0, 6), Tile.of(2, 6), Tile.of(6, 6), Tile.of(1, 3)),
+            played = setOf(Tile.of(0, 0), Tile.of(0, 1)),
+            leftEnd = 6,
+            rightEnd = 3,
+            playerHandCounts = mapOf(1 to 5, 2 to 4, 3 to 5)
+        )
+
+        val first = engine.analyze(state)
+        val second = engine.analyze(state)
+        assertEquals(first, second)
+        assertTrue(first.best!!.futurePlayChance in 0.0..1.0)
+        assertTrue(first.alternatives.all { it.futurePlayChance in 0.0..1.0 })
+    }
+
 }
