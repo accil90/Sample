@@ -83,4 +83,34 @@ class StrategyEngineTest {
         )
         assertEquals(engine.analyze(state), engine.analyze(state))
     }
+    @Test fun currentPassReducesEstimatedPressureOnThePassedEnd() {
+        val base = GameSnapshot(
+            hand = listOf(Tile.of(2, 6)),
+            played = emptySet(),
+            leftEnd = 6,
+            rightEnd = 2,
+            playerHandCounts = mapOf(1 to 2, 2 to 2)
+        )
+        val withPass = base.copy(
+            passes = listOf(PassRecord(player = 1, leftEnd = 6, rightEnd = 2, playedCountAtPass = 0))
+        )
+
+        val withoutPassPressure = engine.analyze(base).best!!.opponentPressure
+        val withPassPressure = engine.analyze(withPass).best!!.opponentPressure
+        assertTrue(withPassPressure < withoutPassPressure)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun opponentHandCountsCannotExceedUnseenTiles() {
+        engine.analyze(
+            GameSnapshot(
+                hand = listOf(Tile.of(1, 2)),
+                played = emptySet(),
+                leftEnd = 1,
+                rightEnd = 2,
+                playerHandCounts = mapOf(1 to 28)
+            )
+        )
+    }
+
 }
