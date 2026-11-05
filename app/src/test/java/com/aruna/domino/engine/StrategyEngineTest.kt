@@ -33,6 +33,7 @@ class StrategyEngineTest {
         val result = engine.analyze(state)
         assertNotNull(result.best)
         assertTrue(result.alternatives.size <= 3)
+        assertTrue(result.best!!.opponentPressure in 0.0..1.0)
     }
 
     @Test fun noLegalMoveReturnsEmptyRecommendation() {
@@ -45,5 +46,41 @@ class StrategyEngineTest {
         val result = engine.analyze(state)
         assertEquals(null, result.best)
         assertTrue(result.legalMoves.isEmpty())
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun duplicatePhysicalTileInHandIsRejected() {
+        engine.analyze(
+            GameSnapshot(
+                hand = listOf(Tile.of(2, 5), Tile.of(5, 2)),
+                played = emptySet(),
+                leftEnd = 2,
+                rightEnd = 4
+            )
+        )
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun tileCannotBeBothInHandAndPlayed() {
+        val tile = Tile.of(1, 6)
+        engine.analyze(
+            GameSnapshot(
+                hand = listOf(tile),
+                played = setOf(tile),
+                leftEnd = 1,
+                rightEnd = 6
+            )
+        )
+    }
+
+    @Test fun rankingIsDeterministic() {
+        val state = GameSnapshot(
+            hand = listOf(Tile.of(0, 6), Tile.of(2, 6), Tile.of(6, 6), Tile.of(1, 3)),
+            played = setOf(Tile.of(0, 0), Tile.of(0, 1)),
+            leftEnd = 6,
+            rightEnd = 3,
+            playerHandCounts = mapOf(1 to 5, 2 to 4, 3 to 5)
+        )
+        assertEquals(engine.analyze(state), engine.analyze(state))
     }
 }
