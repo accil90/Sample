@@ -130,10 +130,11 @@ class StrategyEngine {
     ): Double {
         if (unseen.isEmpty()) return 0.0
 
-        // A player who passed on the current board had neither open-end value.
-        // Only exact-current-board passes are applied; stale passes are ignored.
+        // In no-draw Gaple, a player who passed while a pip was open cannot
+        // later hold that pip: their hand only shrinks. Keep this evidence even
+        // after other tiles are played, as long as the candidate pip was present
+        // at the time of the pass.
         val playersKnownVoidOnPip = state.passes
-            .filter { it.playedCountAtPass == state.played.size }
             .filter { it.leftEnd == exposedPip || it.rightEnd == exposedPip }
             .map { it.player }
             .toSet()
