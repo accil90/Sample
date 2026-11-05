@@ -113,4 +113,20 @@ class StrategyEngineTest {
         )
     }
 
+    @Test fun passEvidenceRemainsUsefulAfterOtherTilesArePlayed() {
+        val state = GameSnapshot(
+            hand = listOf(Tile.of(2, 6)),
+            played = setOf(Tile.of(0, 0)),
+            leftEnd = 6,
+            rightEnd = 2,
+            playerHandCounts = mapOf(1 to 2, 2 to 2),
+            passes = listOf(
+                PassRecord(player = 1, leftEnd = 6, rightEnd = 2, playedCountAtPass = 0)
+            )
+        )
+
+        val result = engine.analyze(state)
+        assertTrue(result.best!!.opponentPressure < 1.0)
+    }
+
 }
