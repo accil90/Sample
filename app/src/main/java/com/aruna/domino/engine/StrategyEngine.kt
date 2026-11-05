@@ -1,5 +1,7 @@
 package com.aruna.domino.engine
 
+import java.util.Random
+
 /** A normalized domino tile; a|b and b|a represent the same physical tile. */
 data class Tile private constructor(val low: Int, val high: Int) {
     val pips: Int get() = low + high
