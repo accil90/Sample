@@ -25,6 +25,9 @@ class MainActivity : Activity() {
     private val played = linkedSetOf<Tile>()
     private val passes = mutableListOf<PassRecord>()
     private var opening: Tile? = null
+    private var mySeat = 1
+    private var openingSeat = 3
+    private var currentTurn = 4
     private var leftEnd = 0
     private var rightEnd = 0
     private var started = false
@@ -64,7 +67,22 @@ class MainActivity : Activity() {
         started = false
         clear()
         root.addView(heading("ARUNA DOMINO PRO"))
-        root.addView(heading("1. Pilih kartu pembuka", 17f))
+        root.addView(heading("1. Atur posisi pemain (4 pemain)", 17f))
+        root.addView(TextView(this).apply { text = "Pilih posisi dudukmu:" })
+        (1..4).forEach { seat ->
+            root.addView(action(if (mySeat == seat) "✓ SAYA MEJA $seat" else "SAYA MEJA $seat") {
+                mySeat = seat
+                showSetup()
+            })
+        }
+        root.addView(TextView(this).apply { text = "Siapa yang menurunkan kartu pembuka?" })
+        (1..4).forEach { seat ->
+            root.addView(action(if (openingSeat == seat) "✓ PEMBUKA MEJA $seat" else "PEMBUKA MEJA $seat") {
+                openingSeat = seat
+                showSetup()
+            })
+        }
+        root.addView(heading("2. Pilih kartu pembuka", 17f))
         root.addView(TextView(this).apply { text = "Ketuk satu kartu yang menjadi pembuka di meja." })
         val openingGrid = tileGrid(allTiles, 4) { tile ->
             opening = tile
@@ -76,7 +94,7 @@ class MainActivity : Activity() {
             text = "Pembuka terpilih: ${opening?.let { tileName(it) } ?: "belum dipilih"}"
             textSize = 16f
         })
-        root.addView(heading("2. Pilih semua kartu di tanganmu", 17f))
+        root.addView(heading("3. Pilih semua kartu di tanganmu", 17f))
         root.addView(TextView(this).apply {
             text = "Ketuk kartu untuk memilih atau membatalkan pilihan. Kartu pembuka tidak dapat dipilih sebagai kartu tangan."
         })
@@ -101,6 +119,7 @@ class MainActivity : Activity() {
                 leftEnd = startTile.low
                 rightEnd = startTile.high
                 passes.clear()
+                currentTurn = nextSeat(openingSeat)
                 started = true
                 showGame()
             }
@@ -111,13 +130,14 @@ class MainActivity : Activity() {
         clear()
         root.addView(heading("ARUNA DOMINO PRO"))
         status = heading("Meja: kiri $leftEnd  |  kanan $rightEnd", 18f)
+        root.addView(heading("Giliran: MEJA $currentTurn" + if (currentTurn == mySeat) " (SAYA)" else " (LAWAN)", 18f))
         root.addView(status)
         handSummary = TextView(this).apply { textSize = 15f }
         root.addView(handSummary)
         updateHandSummary()
         root.addView(TextView(this).apply {
             textSize = 14f
-            text = "Riwayat kartu: " + played.joinToString("  ") { tileName(it) } + "\\nRiwayat PASS lawan: " + passes.size
+            text = "Posisi saya: Meja $mySeat | Pembuka: Meja $openingSeat\\nRiwayat kartu: " + played.joinToString("  ") { tileName(it) } + "\\nRiwayat PASS: " + passes.size
             setPadding(0, 8, 0, 8)
         })
 
@@ -141,12 +161,12 @@ class MainActivity : Activity() {
         root.addView(tileGrid(hand.toList(), 4) { tile ->
             acceptPlayedTile(tile, true)
         })
-        root.addView(action("LAWAN PASS") {
-            passes.add(PassRecord(1, leftEnd, rightEnd, played.size))
-            advice.text = "PASS lawan dicatat. Posisi meja tidak berubah."
-        })
-        root.addView(action("SAYA PASS") {
-            advice.text = "PASS kamu dicatat untuk giliran ini. Posisi meja tidak berubah."
+        root.addView(action(if (currentTurn == mySeat) "SAYA PASS" else "MEJA $currentTurn PASS") {
+            passes.add(PassRecord(currentTurn, leftEnd, rightEnd, played.size))
+            val passedSeat = currentTurn
+            currentTurn = nextSeat(currentTurn)
+            showGame()
+            advice.text = "PASS Meja $passedSeat dicatat. Giliran berikutnya Meja $currentTurn."
         })
         root.addView(action("AKHIRI / ATUR ULANG PERMAINAN") {
             hand.clear()
@@ -159,6 +179,14 @@ class MainActivity : Activity() {
     private fun acceptPlayedTile(tile: Tile, isOwn: Boolean) {
         if (tile in played) {
             statusMessage("Kartu itu sudah tercatat di meja.")
+            return
+        }
+        if (isOwn && currentTurn != mySeat) {
+            statusMessage("Sekarang giliran Meja $currentTurn, bukan giliranmu.")
+            return
+        }
+        if (!isOwn && currentTurn == mySeat) {
+            statusMessage("Sekarang giliranmu. Pilih kartu dari tanganmu.")
             return
         }
         if (isOwn && tile !in hand) return
@@ -195,12 +223,14 @@ class MainActivity : Activity() {
         if (side == Side.LEFT) leftEnd = newEnd else rightEnd = newEnd
         played.add(tile)
         if (isOwn) hand.remove(tile)
+        val playedBy = currentTurn
+        currentTurn = nextSeat(currentTurn)
         pendingTile = null
         showGame()
         advice.text = if (isOwn) {
-            "Kartu ${tileName(tile)} tercatat dimainkan di ${side.name}. Sisa kartu: ${hand.size}."
+            "Meja $playedBy memainkan ${tileName(tile)} di ${side.name}. Sisa kartu: ${hand.size}. Giliran Meja $currentTurn."
         } else {
-            "Lawan memainkan ${tileName(tile)} di ${side.name}. Posisi meja diperbarui."
+            "Meja $playedBy memainkan ${tileName(tile)} di ${side.name}. Posisi meja diperbarui. Giliran Meja $currentTurn."
         }
     }
 
@@ -251,6 +281,8 @@ class MainActivity : Activity() {
             }
         }
     }
+
+    private fun nextSeat(seat: Int) = (seat % 4) + 1
 
     private fun tileName(tile: Tile) = "${tile.low}|${tile.high}"
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
