@@ -226,7 +226,7 @@ class MainActivity : Activity() {
             orientation = LinearLayout.HORIZONTAL
             gravity = android.view.Gravity.TOP
         }
-        val opponentTiles = tileGrid(allTiles.filter { it !in played && it !in hand }, 4) { tile ->
+        val opponentTiles = tileGrid(allTiles.filter { it !in hand }, 4, markedTiles = played) { tile ->
             acceptPlayedTile(tile, false)
         }
         opponentEntryRow.addView(opponentTiles, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
@@ -407,15 +407,22 @@ class MainActivity : Activity() {
         handSummary.text = "Kartu tersisa: ${hand.size}  |  ${hand.sortedWith(compareBy<Tile> { it.low }.thenBy { it.high }).joinToString("  ") { tileName(it) }}"
     }
 
-    private fun tileGrid(tiles: List<Tile>, columns: Int, onSelect: (Tile) -> Unit): GridLayout {
+    private fun tileGrid(
+        tiles: List<Tile>,
+        columns: Int,
+        markedTiles: Set<Tile> = emptySet(),
+        onSelect: (Tile) -> Unit
+    ): GridLayout {
         return GridLayout(this).apply {
             columnCount = columns
             alignmentMode = GridLayout.ALIGN_BOUNDS
             useDefaultMargins = false
             tiles.forEach { tile ->
-                val face = TileFaceView(tile).apply {
-                    contentDescription = tileName(tile)
-                    setOnClickListener { onSelect(tile) }
+                val alreadyPlayed = tile in markedTiles
+                val face = TileFaceView(tile, alreadyPlayed).apply {
+                    contentDescription = if (alreadyPlayed) "${tileName(tile)}, sudah dimainkan" else tileName(tile)
+                    isEnabled = !alreadyPlayed
+                    if (!alreadyPlayed) setOnClickListener { onSelect(tile) }
                 }
                 val params = GridLayout.LayoutParams().apply {
                     width = dp(54)
@@ -503,7 +510,10 @@ class MainActivity : Activity() {
         }
     }
 
-    private inner class TileFaceView(private val tile: Tile) : View(this@MainActivity) {
+    private inner class TileFaceView(
+        private val tile: Tile,
+        private val alreadyPlayed: Boolean = false
+    ) : View(this@MainActivity) {
         private val border = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = 0xFFB71C35.toInt()
             style = Paint.Style.STROKE
@@ -530,6 +540,20 @@ class MainActivity : Activity() {
             canvas.drawLine(7f, height / 2f, width - 7f, height / 2f, line)
             drawPips(canvas, tile.low, width * 0.5f, height * 0.25f)
             drawPips(canvas, tile.high, width * 0.5f, height * 0.75f)
+            if (alreadyPlayed) {
+                val shade = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    color = 0x88FFFFFF.toInt()
+                    style = Paint.Style.FILL
+                }
+                canvas.drawRoundRect(r, 8f, 8f, shade)
+                val mark = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    color = 0xFF8E182B.toInt()
+                    strokeWidth = 4f
+                    strokeCap = Paint.Cap.ROUND
+                }
+                canvas.drawLine(width * 0.22f, height * 0.22f, width * 0.78f, height * 0.78f, mark)
+                canvas.drawLine(width * 0.78f, height * 0.22f, width * 0.22f, height * 0.78f, mark)
+            }
         }
 
         private fun drawPips(canvas: Canvas, value: Int, cx: Float, cy: Float) {
