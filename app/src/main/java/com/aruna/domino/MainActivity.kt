@@ -176,21 +176,48 @@ class MainActivity : Activity() {
         })
 
         root.addView(action("LIHAT SARAN KARTU") { analyze() })
+
+        // Separate side-by-side panels: hand left, visual suggestions right.
+        val cardsRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.TOP
+        }
+        val handPanel = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(6), dp(8), dp(6), dp(8))
+            background = roundedBackground(Color.WHITE, 10)
+        }
+        handPanel.addView(heading("KARTU SAYA", 15f))
+        handPanel.addView(tileGridSmall(hand.toList(), 2) { tile ->
+            acceptPlayedTile(tile, true)
+        })
+        val suggestionPanel = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(6), dp(8), dp(6), dp(8))
+            background = roundedBackground(pale, 10)
+        }
+        suggestionPanel.addView(heading("SARAN KARTU", 15f))
+        recommendationTiles = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = android.view.Gravity.CENTER_HORIZONTAL
+        }
+        recommendationTiles.addView(TextView(this).apply {
+            text = "Tekan LIHAT SARAN KARTU"
+            textSize = 12f
+            setTextColor(darkRed)
+        })
+        suggestionPanel.addView(recommendationTiles)
+        cardsRow.addView(handPanel, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        cardsRow.addView(suggestionPanel, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        root.addView(cardsRow)
+
         advice = TextView(this).apply {
-            textSize = 15f
+            textSize = 13f
             setTextColor(darkRed)
             setPadding(dp(10), dp(10), dp(10), dp(12))
             background = roundedBackground(pale, 10)
-            text = "Tekan tombol saran untuk melihat pilihan strategi."
+            text = "Hasil analisis dan alasan rekomendasi akan muncul di sini."
         }
-        root.addView(heading("Rekomendasi kartu", 18f))
-        recommendationTiles = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = android.view.Gravity.CENTER
-            setPadding(dp(8), dp(8), dp(8), dp(8))
-            background = roundedBackground(pale, 10)
-        }
-        root.addView(recommendationTiles)
         root.addView(advice)
 
         root.addView(heading("Kartu yang dimainkan lawan", 17f))
@@ -202,10 +229,6 @@ class MainActivity : Activity() {
             acceptPlayedTile(tile, false)
         })
 
-        root.addView(heading("Kartu di tanganmu", 17f))
-        root.addView(tileGrid(hand.toList(), 4) { tile ->
-            acceptPlayedTile(tile, true)
-        })
         root.addView(action(if (currentTurn == mySeat) "SAYA PASS" else "MEJA $currentTurn PASS") {
             val passedSeat = currentTurn
             if (passedSeat != mySeat) passes.add(PassRecord(passedSeat, leftEnd, rightEnd, played.size))
@@ -300,27 +323,29 @@ class MainActivity : Activity() {
             val suggestions = listOf(best) + result.alternatives.take(3)
             suggestions.forEachIndexed { index, option ->
                 val item = LinearLayout(this).apply {
-                    orientation = LinearLayout.VERTICAL
-                    gravity = android.view.Gravity.CENTER
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = android.view.Gravity.CENTER_VERTICAL
+                    setPadding(dp(3), dp(4), dp(3), dp(4))
                 }
-                item.addView(TextView(this).apply {
+                item.addView(TileFaceView(option.move.tile), LinearLayout.LayoutParams(
+                    dp(42), dp(62)
+                ).apply { setMargins(dp(2), dp(2), dp(6), dp(2)) })
+                val details = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                }
+                details.addView(TextView(this).apply {
                     text = if (index == 0) "UTAMA" else "ALT. $index"
                     textSize = 11f
                     setTextColor(darkRed)
                     setTypeface(typeface, android.graphics.Typeface.BOLD)
                 })
-                item.addView(TileFaceView(option.move.tile), LinearLayout.LayoutParams(
-                    if (index == 0) dp(66) else dp(52),
-                    if (index == 0) dp(96) else dp(76)
-                ).apply { setMargins(dp(3), dp(6), dp(3), dp(6)) })
-                item.addView(TextView(this).apply {
-                    text = option.move.side.name
-                    textSize = 11f
+                details.addView(TextView(this).apply {
+                    text = "Meja ${option.move.side.name}"
+                    textSize = 10f
                     setTextColor(darkRed)
                 })
-                recommendationTiles.addView(item, LinearLayout.LayoutParams(
-                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f
-                ))
+                item.addView(details)
+                recommendationTiles.addView(item)
             }
 
             advice.text = buildString {
@@ -352,6 +377,26 @@ class MainActivity : Activity() {
                     width = dp(54)
                     height = dp(78)
                     setMargins(dp(3), dp(4), dp(3), dp(4))
+                }
+                addView(face, params)
+            }
+        }
+    }
+
+    private fun tileGridSmall(tiles: List<Tile>, columns: Int, onSelect: (Tile) -> Unit): GridLayout {
+        return GridLayout(this).apply {
+            columnCount = columns
+            alignmentMode = GridLayout.ALIGN_BOUNDS
+            useDefaultMargins = false
+            tiles.forEach { tile ->
+                val face = TileFaceView(tile).apply {
+                    contentDescription = tileName(tile)
+                    setOnClickListener { onSelect(tile) }
+                }
+                val params = GridLayout.LayoutParams().apply {
+                    width = dp(38)
+                    height = dp(56)
+                    setMargins(dp(2), dp(3), dp(2), dp(3))
                 }
                 addView(face, params)
             }
