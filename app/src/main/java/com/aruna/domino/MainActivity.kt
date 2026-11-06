@@ -66,11 +66,7 @@ class MainActivity : Activity() {
             setPadding(dp(8), dp(6), dp(8), dp(8))
             setBackgroundColor(Color.rgb(250, 247, 247))
         }
-        setContentView(ScrollView(this).apply {
-            isFillViewport = true
-            setBackgroundColor(Color.rgb(250, 247, 247))
-            addView(root)
-        })
+        setContentView(root)
         showSetup()
     }
 
@@ -213,37 +209,52 @@ class MainActivity : Activity() {
             setPadding(0, dp(8), 0, dp(8))
         })
 
-        // Separate side-by-side panels: hand left, visual suggestions right.
-        val cardsRow = LinearLayout(this).apply {
+        // Layout satu layar: kartu lawan di kiri, kontrol dan rekomendasi di kanan.
+        val gameColumns = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = android.view.Gravity.TOP
         }
-        val handPanel = LinearLayout(this).apply {
+        val opponentPanel = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(6), dp(8), dp(6), dp(8))
-            background = roundedBackground(Color.WHITE, 10)
+            setPadding(dp(3), dp(4), dp(3), dp(4))
         }
-        // Kartu tangan disimpan untuk analisis, tidak ditampilkan saat permainan.
-        val suggestionPanel = LinearLayout(this).apply {
+        opponentPanel.addView(heading("KARTU LAWAN", 13f))
+        opponentPanel.addView(TextView(this).apply {
+            text = "Pilih kartu yang baru dimainkan"
+            textSize = 10f
+            setTextColor(Color.DKGRAY)
+        })
+        val opponentTiles = tileGrid(allTiles.filter { it !in hand }, 4, markedTiles = played) { tile ->
+            acceptPlayedTile(tile, false)
+        }
+        opponentPanel.addView(opponentTiles)
+
+        val rightPanel = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(6), dp(8), dp(6), dp(8))
+            setPadding(dp(4), dp(4), dp(3), dp(4))
             background = roundedBackground(pale, 10)
         }
-        suggestionPanel.addView(heading("SARAN KARTU", 15f))
+        opponentSideChoices = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = android.view.Gravity.CENTER
+            visibility = View.GONE
+            setPadding(dp(2), dp(3), dp(2), dp(3))
+        }
+        rightPanel.addView(opponentSideChoices)
+        rightPanel.addView(heading("SARAN KARTU", 13f))
         recommendationTiles = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = android.view.Gravity.CENTER_HORIZONTAL
         }
         recommendationTiles.addView(TextView(this).apply {
-            text = "Menghitung saran kartu..."
-            textSize = 12f
+            text = "Menghitung..."
+            textSize = 10f
             setTextColor(darkRed)
         })
-        suggestionPanel.addView(recommendationTiles)
-        cardsRow.addView(handPanel, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        cardsRow.addView(suggestionPanel, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        root.addView(cardsRow)
-
+        rightPanel.addView(recommendationTiles)
+        gameColumns.addView(opponentPanel, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        gameColumns.addView(rightPanel, LinearLayout.LayoutParams(dp(112), LinearLayout.LayoutParams.WRAP_CONTENT))
+        root.addView(gameColumns)
         advice = TextView(this).apply {
             textSize = 13f
             setTextColor(darkRed)
@@ -252,28 +263,6 @@ class MainActivity : Activity() {
             text = "Hasil analisis dan alasan rekomendasi akan muncul di sini."
         }
         root.addView(advice)
-
-        root.addView(heading("Kartu yang dimainkan lawan", 17f))
-        root.addView(TextView(this).apply {
-            text = "Pilih kartu yang baru saja diturunkan lawan."
-            textSize = 14f
-        })
-        val opponentEntryRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = android.view.Gravity.TOP
-        }
-        val opponentTiles = tileGrid(allTiles.filter { it !in hand }, 4, markedTiles = played) { tile ->
-            acceptPlayedTile(tile, false)
-        }
-        opponentEntryRow.addView(opponentTiles, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        opponentSideChoices = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = android.view.Gravity.CENTER
-            visibility = View.GONE
-            setPadding(dp(3), dp(4), dp(3), dp(4))
-        }
-        opponentEntryRow.addView(opponentSideChoices, LinearLayout.LayoutParams(dp(82), LinearLayout.LayoutParams.WRAP_CONTENT))
-        root.addView(opponentEntryRow)
 
         root.addView(action(if (currentTurn == mySeat) "SAYA PASS" else "MEJA $currentTurn PASS") {
             val passedSeat = currentTurn
@@ -464,7 +453,7 @@ class MainActivity : Activity() {
     }
 
     private fun updateHandSummary() {
-        handSummary.text = "Kartu tersisa: ${hand.size}  |  ${hand.sortedWith(compareBy<Tile> { it.low }.thenBy { it.high }).joinToString("  ") { tileName(it) }}"
+        handSummary.text = "Kartu tersisa: ${hand.size}"
     }
 
     private fun tileGrid(
@@ -583,7 +572,7 @@ class MainActivity : Activity() {
         private val selected: Boolean = false
     ) : View(this@MainActivity) {
         private val border = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = 0xFFB71C35.toInt()
+            color = Color.BLACK
             style = Paint.Style.STROKE
             strokeWidth = 2.5f
         }
