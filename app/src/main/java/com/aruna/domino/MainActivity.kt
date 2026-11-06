@@ -138,7 +138,7 @@ class MainActivity : Activity() {
         root.addView(tileGrid(
             allTiles,
             7,
-            markedTiles = hand,
+            selectedTiles = hand,
             selectedTile = opening
         ) { tile ->
             if (selectingOpening) {
@@ -466,6 +466,7 @@ class MainActivity : Activity() {
         tiles: List<Tile>,
         columns: Int,
         markedTiles: Set<Tile> = emptySet(),
+        selectedTiles: Set<Tile> = emptySet(),
         selectedTile: Tile? = null,
         onSelect: (Tile) -> Unit
     ): GridLayout {
@@ -475,7 +476,7 @@ class MainActivity : Activity() {
             useDefaultMargins = false
             tiles.forEach { tile ->
                 val alreadyPlayed = tile in markedTiles
-                val isSelected = tile == selectedTile
+                val isSelected = tile in selectedTiles || tile == selectedTile
                 val face = TileFaceView(tile, alreadyPlayed, isSelected).apply {
                     contentDescription = when {
                         alreadyPlayed -> "${tileName(tile)}, sudah dimainkan"
