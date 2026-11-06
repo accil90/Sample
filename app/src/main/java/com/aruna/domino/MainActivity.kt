@@ -136,9 +136,13 @@ class MainActivity : Activity() {
         root.addView(tileGrid(hand.toList(), 4) { tile ->
             acceptPlayedTile(tile, true)
         })
-        root.addView(action("PASS — SAYA TIDAK BISA BERMAIN") {
+        root.addView(action("LAWAN PASS") {
+            passes.add(PassRecord(1, leftEnd, rightEnd, played.size))
+            advice.text = "PASS lawan dicatat. Posisi meja tidak berubah."
+        })
+        root.addView(action("SAYA PASS") {
             passes.add(PassRecord(0, leftEnd, rightEnd, played.size))
-            advice.text = "PASS dicatat. Posisi meja tidak berubah."
+            advice.text = "PASS kamu dicatat. Posisi meja tidak berubah."
         })
         root.addView(action("AKHIRI / ATUR ULANG PERMAINAN") {
             hand.clear()
