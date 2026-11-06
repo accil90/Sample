@@ -117,7 +117,7 @@ class MainActivity : Activity() {
         updateHandSummary()
         root.addView(TextView(this).apply {
             textSize = 14f
-            text = "Riwayat kartu: " + played.joinToString("  ") { tileName(it) } +\n                "\\nRiwayat PASS lawan: " + passes.size
+            text = "Riwayat kartu: " + played.joinToString("  ") { tileName(it) } + "\\nRiwayat PASS lawan: " + passes.size
             setPadding(0, 8, 0, 8)
         })
 
