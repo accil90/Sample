@@ -286,6 +286,23 @@ class MainActivity : Activity() {
         root.addView(action("BATAL") { showGame() })
     }
 
+    private fun playSuggested(tile: Tile, side: Side) {
+        if (currentTurn != mySeat) {
+            statusMessage("Tombol saran aktif saat giliranmu.")
+            return
+        }
+        val end = if (side == Side.LEFT) leftEnd else rightEnd
+        if (!tile.contains(end)) {
+            statusMessage("Kartu ${tileName(tile)} tidak cocok di sisi ${side.name}.")
+            return
+        }
+        if (tile !in hand) {
+            statusMessage("Kartu saran itu tidak ada di tanganmu.")
+            return
+        }
+        commitTile(tile, side, true)
+    }
+
     private fun commitTile(tile: Tile, side: Side, isOwn: Boolean) {
         val exposed = if (side == Side.LEFT) leftEnd else rightEnd
         val newEnd = tile.otherEnd(exposed) ?: exposed
@@ -333,6 +350,7 @@ class MainActivity : Activity() {
                 ).apply { setMargins(dp(2), dp(2), dp(6), dp(2)) })
                 val details = LinearLayout(this).apply {
                     orientation = LinearLayout.VERTICAL
+                    setPadding(dp(2), 0, dp(2), 0)
                 }
                 details.addView(TextView(this).apply {
                     text = if (index == 0) "UTAMA" else "ALT. $index"
@@ -341,11 +359,31 @@ class MainActivity : Activity() {
                     setTypeface(typeface, android.graphics.Typeface.BOLD)
                 })
                 details.addView(TextView(this).apply {
-                    text = "Meja ${option.move.side.name}"
+                    text = "Pilih sisi:"
                     textSize = 10f
                     setTextColor(darkRed)
                 })
-                item.addView(details)
+                item.addView(details, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+                val sideButtons = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                }
+                val leftButton = action("KIRI") {
+                    playSuggested(option.move.tile, Side.LEFT)
+                }.apply {
+                    isEnabled = currentTurn == mySeat && option.move.tile.contains(leftEnd)
+                    textSize = 10f
+                    setPadding(dp(4), 0, dp(4), 0)
+                }
+                val rightButton = action("KANAN") {
+                    playSuggested(option.move.tile, Side.RIGHT)
+                }.apply {
+                    isEnabled = currentTurn == mySeat && option.move.tile.contains(rightEnd)
+                    textSize = 10f
+                    setPadding(dp(4), 0, dp(4), 0)
+                }
+                sideButtons.addView(leftButton)
+                sideButtons.addView(rightButton)
+                item.addView(sideButtons)
                 recommendationTiles.addView(item)
             }
 
