@@ -13,6 +13,7 @@ import android.view.ViewGroup
 import android.widget.Button
 import android.widget.GridLayout
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
 import com.aruna.domino.engine.GameSnapshot
 import com.aruna.domino.engine.PassRecord
@@ -65,7 +66,11 @@ class MainActivity : Activity() {
             setPadding(dp(8), dp(6), dp(8), dp(8))
             setBackgroundColor(Color.rgb(250, 247, 247))
         }
-        setContentView(root)
+        setContentView(ScrollView(this).apply {
+            isFillViewport = true
+            setBackgroundColor(Color.rgb(250, 247, 247))
+            addView(root)
+        })
         showSetup()
     }
 
