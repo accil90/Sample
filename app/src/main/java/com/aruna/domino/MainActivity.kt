@@ -115,6 +115,11 @@ class MainActivity : Activity() {
         handSummary = TextView(this).apply { textSize = 15f }
         root.addView(handSummary)
         updateHandSummary()
+        root.addView(TextView(this).apply {
+            textSize = 14f
+            text = "Riwayat kartu: " + played.joinToString("  ") { tileName(it) } +\n                "\\nRiwayat PASS lawan: " + passes.size
+            setPadding(0, 8, 0, 8)
+        })
 
         root.addView(action("SARAN KARTU SAYA") { analyze() })
         advice = TextView(this).apply {
@@ -141,8 +146,7 @@ class MainActivity : Activity() {
             advice.text = "PASS lawan dicatat. Posisi meja tidak berubah."
         })
         root.addView(action("SAYA PASS") {
-            passes.add(PassRecord(0, leftEnd, rightEnd, played.size))
-            advice.text = "PASS kamu dicatat. Posisi meja tidak berubah."
+            advice.text = "PASS kamu dicatat untuk giliran ini. Posisi meja tidak berubah."
         })
         root.addView(action("AKHIRI / ATUR ULANG PERMAINAN") {
             hand.clear()
