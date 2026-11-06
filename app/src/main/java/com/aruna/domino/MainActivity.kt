@@ -41,6 +41,7 @@ class MainActivity : Activity() {
     private lateinit var status: TextView
     private lateinit var advice: TextView
     private lateinit var recommendationTiles: LinearLayout
+    private lateinit var opponentSideChoices: LinearLayout
     private lateinit var handSummary: TextView
 
     private val red = Color.rgb(190, 35, 55)
@@ -221,9 +222,22 @@ class MainActivity : Activity() {
             text = "Pilih kartu yang baru saja diturunkan lawan."
             textSize = 14f
         })
-        root.addView(tileGrid(allTiles.filter { it !in played && it !in hand }, 4) { tile ->
+        val opponentEntryRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.TOP
+        }
+        val opponentTiles = tileGrid(allTiles.filter { it !in played && it !in hand }, 4) { tile ->
             acceptPlayedTile(tile, false)
-        })
+        }
+        opponentEntryRow.addView(opponentTiles, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        opponentSideChoices = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = android.view.Gravity.CENTER
+            visibility = View.GONE
+            setPadding(dp(3), dp(4), dp(3), dp(4))
+        }
+        opponentEntryRow.addView(opponentSideChoices, LinearLayout.LayoutParams(dp(82), LinearLayout.LayoutParams.WRAP_CONTENT))
+        root.addView(opponentEntryRow)
 
         root.addView(action(if (currentTurn == mySeat) "SAYA PASS" else "MEJA $currentTurn PASS") {
             val passedSeat = currentTurn
@@ -273,15 +287,36 @@ class MainActivity : Activity() {
     }
 
     private fun showSideChoice(tile: Tile) {
-        clear()
-        root.addView(heading("Pilih sisi pemasangan"))
-        root.addView(TextView(this).apply {
-            text = "Kartu ${tileName(tile)} bisa dipasang di kedua ujung meja."
-            textSize = 17f
+        opponentSideChoices.removeAllViews()
+        opponentSideChoices.visibility = View.VISIBLE
+        opponentSideChoices.addView(TextView(this).apply {
+            text = "PILIH SISI"
+            textSize = 10f
+            setTextColor(darkRed)
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
         })
-        root.addView(action("PASANG DI KIRI  (ujung $leftEnd)") { commitTile(tile, Side.LEFT, pendingIsOwn) })
-        root.addView(action("PASANG DI KANAN  (ujung $rightEnd)") { commitTile(tile, Side.RIGHT, pendingIsOwn) })
-        root.addView(action("BATAL") { showGame() })
+        if (tile.contains(leftEnd)) {
+            opponentSideChoices.addView(action("KIRI") {
+                commitTile(tile, Side.LEFT, pendingIsOwn)
+            }.apply {
+                textSize = 11f
+                minWidth = 0
+                setPadding(dp(3), 0, dp(3), 0)
+            }, LinearLayout.LayoutParams(dp(76), dp(38)).apply {
+                setMargins(0, dp(3), 0, dp(3))
+            })
+        }
+        if (tile.contains(rightEnd)) {
+            opponentSideChoices.addView(action("KANAN") {
+                commitTile(tile, Side.RIGHT, pendingIsOwn)
+            }.apply {
+                textSize = 11f
+                minWidth = 0
+                setPadding(dp(3), 0, dp(3), 0)
+            }, LinearLayout.LayoutParams(dp(76), dp(38)).apply {
+                setMargins(0, dp(3), 0, dp(3))
+            })
+        }
     }
 
     private fun playSuggested(tile: Tile, side: Side) {
@@ -348,38 +383,6 @@ class MainActivity : Activity() {
                     dp(38), dp(56)
                 ).apply { setMargins(dp(2), dp(2), dp(5), dp(2)) })
 
-                // Side controls belong beside the recommended tile, not in the player's hand.
-                val sideChoices = LinearLayout(this).apply {
-                    orientation = LinearLayout.VERTICAL
-                    gravity = android.view.Gravity.CENTER_VERTICAL
-                }
-                val canLeft = suggestedTile.contains(leftEnd)
-                val canRight = suggestedTile.contains(rightEnd)
-                if (canLeft) {
-                    sideChoices.addView(action("KIRI") {
-                        playSuggested(suggestedTile, Side.LEFT)
-                    }.apply {
-                        isEnabled = currentTurn == mySeat
-                        textSize = 10f
-                        minWidth = 0
-                        setPadding(dp(4), 0, dp(4), 0)
-                    }, LinearLayout.LayoutParams(dp(58), dp(30)).apply {
-                        setMargins(dp(1), dp(1), dp(1), dp(1))
-                    })
-                }
-                if (canRight) {
-                    sideChoices.addView(action("KANAN") {
-                        playSuggested(suggestedTile, Side.RIGHT)
-                    }.apply {
-                        isEnabled = currentTurn == mySeat
-                        textSize = 10f
-                        minWidth = 0
-                        setPadding(dp(4), 0, dp(4), 0)
-                    }, LinearLayout.LayoutParams(dp(58), dp(30)).apply {
-                        setMargins(dp(1), dp(1), dp(1), dp(1))
-                    })
-                }
-                item.addView(sideChoices)
                 recommendationTiles.addView(item)
                 recommendationTiles.addView(TextView(this).apply {
                     text = if (index == 0) "SARAN TERBAIK" else "ALTERNATIF $index"
