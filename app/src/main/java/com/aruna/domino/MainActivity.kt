@@ -175,8 +175,6 @@ class MainActivity : Activity() {
             setPadding(0, dp(8), 0, dp(8))
         })
 
-        root.addView(action("LIHAT SARAN KARTU") { analyze() })
-
         // Separate side-by-side panels: hand left, visual suggestions right.
         val cardsRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -202,7 +200,7 @@ class MainActivity : Activity() {
             gravity = android.view.Gravity.CENTER_HORIZONTAL
         }
         recommendationTiles.addView(TextView(this).apply {
-            text = "Tekan LIHAT SARAN KARTU"
+            text = "Menghitung saran kartu..."
             textSize = 12f
             setTextColor(darkRed)
         })
@@ -242,6 +240,9 @@ class MainActivity : Activity() {
             opening = null
             showSetup()
         })
+
+        // Generate recommendations automatically whenever the game screen appears.
+        analyze()
     }
 
     private fun acceptPlayedTile(tile: Tile, isOwn: Boolean) {
