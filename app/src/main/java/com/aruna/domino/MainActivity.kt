@@ -13,7 +13,6 @@ import android.view.ViewGroup
 import android.widget.Button
 import android.widget.GridLayout
 import android.widget.LinearLayout
-import android.widget.ScrollView
 import android.widget.TextView
 import com.aruna.domino.engine.GameSnapshot
 import com.aruna.domino.engine.PassRecord
@@ -28,6 +27,7 @@ class MainActivity : Activity() {
     private val played = linkedSetOf<Tile>()
     private val passes = mutableListOf<PassRecord>()
     private var opening: Tile? = null
+    private var selectingOpening = true
     private val mySeat = 1
     private var openingSeat = 3
     private var currentTurn = 4
@@ -62,13 +62,10 @@ class MainActivity : Activity() {
         title = "ARUNA DOMINO PRO"
         root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(16), dp(14), dp(16), dp(24))
+            setPadding(dp(8), dp(6), dp(8), dp(8))
             setBackgroundColor(Color.rgb(250, 247, 247))
         }
-        setContentView(ScrollView(this).apply {
-            setBackgroundColor(Color.rgb(250, 247, 247))
-            addView(root)
-        })
+        setContentView(root)
         showSetup()
     }
 
@@ -77,7 +74,7 @@ class MainActivity : Activity() {
         textSize = size
         setTextColor(darkRed)
         setTypeface(typeface, android.graphics.Typeface.BOLD)
-        setPadding(0, dp(14), 0, dp(8))
+        setPadding(0, dp(6), 0, dp(3))
     }
 
     private fun action(text: String, onClick: () -> Unit) = Button(this).apply {
@@ -97,62 +94,84 @@ class MainActivity : Activity() {
         lastMoveSnapshot = null
         clear()
 
-        root.addView(heading("PILIH PEMBUKA", 21f))
+        root.addView(heading("PERSIAPAN PERMAINAN", 19f))
         root.addView(TextView(this).apply {
-            text = "Meja berapa yang menurunkan kartu pertama?"
-            textSize = 15f
+            text = "Pilih meja pembuka, kartu pembuka, lalu tandai 7 kartu milikmu."
+            textSize = 12f
             setTextColor(Color.DKGRAY)
-            setPadding(0, dp(4), 0, dp(8))
         })
+
+        val seats = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER
+        }
         (1..4).forEach { seat ->
-            root.addView(action(if (openingSeat == seat) "✓ MEJA $seat" else "MEJA $seat") {
+            seats.addView(action(if (openingSeat == seat) "✓ MEJA $seat" else "MEJA $seat") {
                 openingSeat = seat
                 showSetup()
+            }, LinearLayout.LayoutParams(0, dp(42), 1f).apply {
+                setMargins(dp(2), dp(4), dp(2), dp(4))
             })
         }
+        root.addView(seats)
 
-        root.addView(heading("KARTU PEMBUKA", 18f))
+        val modes = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+        }
+        modes.addView(action(if (selectingOpening) "✓ PILIH PEMBUKA" else "PILIH PEMBUKA") {
+            selectingOpening = true
+            showSetup()
+        }, LinearLayout.LayoutParams(0, dp(42), 1f).apply { setMargins(dp(2), 0, dp(2), 0) })
+        modes.addView(action(if (!selectingOpening) "✓ PILIH 7 KARTU SAYA" else "PILIH 7 KARTU SAYA") {
+            selectingOpening = false
+            showSetup()
+        }, LinearLayout.LayoutParams(0, dp(42), 1f).apply { setMargins(dp(2), 0, dp(2), 0) })
+        root.addView(modes)
+
         root.addView(TextView(this).apply {
-            text = "Pilih kartu yang pertama kali diturunkan."
-            textSize = 14f
-            setTextColor(Color.DKGRAY)
+            text = if (selectingOpening) "Ketuk satu kartu untuk menetapkan kartu pembuka." else "Ketuk kartu untuk menandai kepemilikan. Pilihan: ${hand.size}/7"
+            textSize = 12f
+            setTextColor(darkRed)
+            setPadding(dp(2), dp(5), dp(2), dp(3))
         })
-        root.addView(tileGrid(allTiles, 4) { tile ->
-            opening = tile
-            hand.remove(tile)
+
+        root.addView(tileGrid(
+            allTiles,
+            7,
+            markedTiles = hand,
+            selectedTile = opening
+        ) { tile ->
+            if (selectingOpening) {
+                opening = tile
+                hand.remove(tile)
+                selectingOpening = false
+            } else {
+                if (tile == opening) {
+                    statusMessage("Kartu pembuka tidak bisa menjadi kartu tangan.")
+                } else if (tile in hand) {
+                    hand.remove(tile)
+                } else if (hand.size < 7) {
+                    hand.add(tile)
+                } else {
+                    statusMessage("Maksimal 7 kartu. Batalkan pilihan lain terlebih dahulu.")
+                }
+            }
             showSetup()
         })
-        root.addView(TextView(this).apply {
-            text = "Kartu pembuka: ${opening?.let { tileName(it) } ?: "belum dipilih"}"
-            textSize = 15f
-            setTextColor(darkRed)
-            setPadding(0, dp(6), 0, dp(4))
-        })
 
-        root.addView(heading("KARTU DI TANGAN SAYA", 18f))
         root.addView(TextView(this).apply {
-            text = "Pilih semua kartu yang kamu pegang. Ketuk lagi untuk membatalkan."
+            text = "PEMBUKA: ${opening?.let { tileName(it) } ?: "belum dipilih"}     KARTU SAYA: ${hand.size}/7"
             textSize = 14f
-            setTextColor(Color.DKGRAY)
-        })
-        root.addView(tileGrid(allTiles.filter { it != opening }, 4) { tile ->
-            if (tile in hand) hand.remove(tile) else hand.add(tile)
-            showSetup()
-        })
-        root.addView(TextView(this).apply {
-            text = "Kartu dipilih: ${hand.size}"
-            textSize = 15f
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
             setTextColor(darkRed)
-            setPadding(0, dp(8), 0, dp(8))
+            setPadding(dp(2), dp(4), dp(2), dp(4))
         })
         root.addView(action("MULAI PERMAINAN") {
             val startTile = opening
             if (startTile == null) {
                 statusMessage("Pilih kartu pembuka terlebih dahulu.")
-            } else if (hand.isEmpty()) {
-                statusMessage("Pilih kartu yang ada di tanganmu terlebih dahulu.")
-            } else if (startTile in hand) {
-                statusMessage("Kartu pembuka tidak boleh dipilih sebagai kartu tangan.")
+            } else if (hand.size != 7) {
+                statusMessage("Pilih tepat 7 kartu yang kamu miliki.")
             } else {
                 played.clear()
                 played.add(startTile)
@@ -199,8 +218,7 @@ class MainActivity : Activity() {
             setPadding(dp(6), dp(8), dp(6), dp(8))
             background = roundedBackground(Color.WHITE, 10)
         }
-        handPanel.addView(heading("KARTU SAYA", 15f))
-        handPanel.addView(tileGridSmall(hand.toList(), 3) { })
+        // Kartu tangan disimpan untuk analisis, tidak ditampilkan saat permainan.
         val suggestionPanel = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(6), dp(8), dp(6), dp(8))
@@ -448,6 +466,7 @@ class MainActivity : Activity() {
         tiles: List<Tile>,
         columns: Int,
         markedTiles: Set<Tile> = emptySet(),
+        selectedTile: Tile? = null,
         onSelect: (Tile) -> Unit
     ): GridLayout {
         return GridLayout(this).apply {
@@ -456,15 +475,20 @@ class MainActivity : Activity() {
             useDefaultMargins = false
             tiles.forEach { tile ->
                 val alreadyPlayed = tile in markedTiles
-                val face = TileFaceView(tile, alreadyPlayed).apply {
-                    contentDescription = if (alreadyPlayed) "${tileName(tile)}, sudah dimainkan" else tileName(tile)
+                val isSelected = tile == selectedTile
+                val face = TileFaceView(tile, alreadyPlayed, isSelected).apply {
+                    contentDescription = when {
+                        alreadyPlayed -> "${tileName(tile)}, sudah dimainkan"
+                        isSelected -> "${tileName(tile)}, kartu pembuka terpilih"
+                        else -> tileName(tile)
+                    }
                     isEnabled = !alreadyPlayed
                     if (!alreadyPlayed) setOnClickListener { onSelect(tile) }
                 }
                 val params = GridLayout.LayoutParams().apply {
-                    width = dp(54)
-                    height = dp(78)
-                    setMargins(dp(3), dp(4), dp(3), dp(4))
+                    width = dp(40)
+                    height = dp(57)
+                    setMargins(dp(1), dp(2), dp(1), dp(2))
                 }
                 addView(face, params)
             }
@@ -549,7 +573,8 @@ class MainActivity : Activity() {
 
     private inner class TileFaceView(
         private val tile: Tile,
-        private val alreadyPlayed: Boolean = false
+        private val alreadyPlayed: Boolean = false,
+        private val selected: Boolean = false
     ) : View(this@MainActivity) {
         private val border = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = 0xFFB71C35.toInt()
@@ -557,7 +582,7 @@ class MainActivity : Activity() {
             strokeWidth = 2.5f
         }
         private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = 0xFFFFF5F5.toInt()
+            color = if (selected) 0xFFFFDDE2.toInt() else 0xFFFFF5F5.toInt()
             style = Paint.Style.FILL
         }
         private val dot = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -573,7 +598,20 @@ class MainActivity : Activity() {
             super.onDraw(canvas)
             val r = RectF(3f, 3f, width - 3f, height - 3f)
             canvas.drawRoundRect(r, 8f, 8f, fill)
-            canvas.drawRoundRect(r, 8f, 8f, border)
+            if (selected) {
+                val selectedBorder = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    color = 0xFF8E182B.toInt()
+                    style = Paint.Style.STROKE
+                    strokeWidth = 4f
+                }
+                canvas.drawRoundRect(r, 8f, 8f, selectedBorder)
+                val check = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    color = 0xFF8E182B.toInt()
+                    textSize = 15f
+                    typeface = android.graphics.Typeface.DEFAULT_BOLD
+                }
+                canvas.drawText("✓", width - 15f, 15f, check)
+            }
             canvas.drawLine(7f, height / 2f, width - 7f, height / 2f, line)
             drawPips(canvas, tile.low, width * 0.5f, height * 0.25f)
             drawPips(canvas, tile.high, width * 0.5f, height * 0.75f)
