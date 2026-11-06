@@ -28,7 +28,7 @@ class MainActivity : Activity() {
     private val played = linkedSetOf<Tile>()
     private val passes = mutableListOf<PassRecord>()
     private var opening: Tile? = null
-    private var mySeat = 1
+    private val mySeat = 1
     private var openingSeat = 3
     private var currentTurn = 4
     private var leftEnd = 0
@@ -40,6 +40,7 @@ class MainActivity : Activity() {
     private lateinit var root: LinearLayout
     private lateinit var status: TextView
     private lateinit var advice: TextView
+    private lateinit var recommendationTiles: LinearLayout
     private lateinit var handSummary: TextView
 
     private val red = Color.rgb(190, 35, 55)
@@ -84,54 +85,51 @@ class MainActivity : Activity() {
     private fun showSetup() {
         started = false
         clear()
-        root.addView(heading("ARUNA DOMINO PRO", 23f))
+
+        root.addView(heading("PILIH PEMBUKA", 21f))
         root.addView(TextView(this).apply {
-            text = "Atur tempat duduk dan kartu sebelum mulai."
-            textSize = 14f
+            text = "Meja berapa yang menurunkan kartu pertama?"
+            textSize = 15f
             setTextColor(Color.DKGRAY)
-        })
-        root.addView(heading("1. Posisi pemain", 17f))
-        root.addView(TextView(this).apply { text = "Pilih posisi dudukmu:" })
-        (1..4).forEach { seat ->
-            root.addView(action(if (mySeat == seat) "✓ SAYA — MEJA $seat" else "SAYA — MEJA $seat") {
-                mySeat = seat
-                showSetup()
-            })
-        }
-        root.addView(TextView(this).apply {
-            text = "Siapa yang menurunkan kartu pembuka?"
-            setPadding(0, dp(8), 0, 0)
+            setPadding(0, dp(4), 0, dp(8))
         })
         (1..4).forEach { seat ->
-            root.addView(action(if (openingSeat == seat) "✓ PEMBUKA — MEJA $seat" else "PEMBUKA — MEJA $seat") {
+            root.addView(action(if (openingSeat == seat) "✓ MEJA $seat" else "MEJA $seat") {
                 openingSeat = seat
                 showSetup()
             })
         }
-        root.addView(heading("2. Pilih kartu pembuka", 17f))
-        root.addView(TextView(this).apply { text = "Ketuk satu kartu domino." })
+
+        root.addView(heading("KARTU PEMBUKA", 18f))
+        root.addView(TextView(this).apply {
+            text = "Pilih kartu yang pertama kali diturunkan."
+            textSize = 14f
+            setTextColor(Color.DKGRAY)
+        })
         root.addView(tileGrid(allTiles, 4) { tile ->
             opening = tile
             hand.remove(tile)
             showSetup()
         })
         root.addView(TextView(this).apply {
-            text = "Pembuka: ${opening?.let { tileName(it) } ?: "belum dipilih"}"
+            text = "Kartu pembuka: ${opening?.let { tileName(it) } ?: "belum dipilih"}"
             textSize = 15f
             setTextColor(darkRed)
-            setPadding(0, dp(6), 0, 0)
+            setPadding(0, dp(6), 0, dp(4))
         })
-        root.addView(heading("3. Pilih kartu di tanganmu", 17f))
+
+        root.addView(heading("KARTU DI TANGAN SAYA", 18f))
         root.addView(TextView(this).apply {
-            text = "Ketuk kartu untuk memilih atau membatalkan pilihan. Kartu pembuka tidak bisa dipilih lagi."
+            text = "Pilih semua kartu yang kamu pegang. Ketuk lagi untuk membatalkan."
             textSize = 14f
+            setTextColor(Color.DKGRAY)
         })
-        root.addView(tileGrid(allTiles.filter { it != opening && it !in played }, 4) { tile ->
+        root.addView(tileGrid(allTiles.filter { it != opening }, 4) { tile ->
             if (tile in hand) hand.remove(tile) else hand.add(tile)
             showSetup()
         })
         root.addView(TextView(this).apply {
-            text = "Jumlah kartu pilihan: ${hand.size}"
+            text = "Kartu dipilih: ${hand.size}"
             textSize = 15f
             setTextColor(darkRed)
             setPadding(0, dp(8), 0, dp(8))
@@ -142,6 +140,8 @@ class MainActivity : Activity() {
                 statusMessage("Pilih kartu pembuka terlebih dahulu.")
             } else if (hand.isEmpty()) {
                 statusMessage("Pilih kartu yang ada di tanganmu terlebih dahulu.")
+            } else if (startTile in hand) {
+                statusMessage("Kartu pembuka tidak boleh dipilih sebagai kartu tangan.")
             } else {
                 played.clear()
                 played.add(startTile)
@@ -183,6 +183,14 @@ class MainActivity : Activity() {
             background = roundedBackground(pale, 10)
             text = "Tekan tombol saran untuk melihat pilihan strategi."
         }
+        root.addView(heading("Rekomendasi kartu", 18f))
+        recommendationTiles = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER
+            setPadding(dp(8), dp(8), dp(8), dp(8))
+            background = roundedBackground(pale, 10)
+        }
+        root.addView(recommendationTiles)
         root.addView(advice)
 
         root.addView(heading("Kartu yang dimainkan lawan", 17f))
@@ -283,19 +291,43 @@ class MainActivity : Activity() {
                 )
             )
             val best = result.best
-            advice.text = if (best == null) {
-                "Tidak ada kartu legal. Pertimbangkan PASS."
-            } else {
-                buildString {
-                    append("SARAN UTAMA: ${tileName(best.move.tile)} ke ${best.move.side.name}\n")
-                    append("Skor strategi: ${"%.2f".format(best.score)}\n")
-                    append("Tekanan lawan (estimasi): ${"%.0f".format(best.opponentPressure * 100)}%\n")
-                    append("Peluang bisa bermain lagi (estimasi): ${"%.0f".format(best.futurePlayChance * 100)}%")
-                    result.alternatives.take(3).forEachIndexed { index, option ->
-                        append("\nAlternatif ${index + 1}: ${tileName(option.move.tile)} — ${option.move.side.name}")
-                    }
-                    append("\n\nPrediksi adalah perkiraan, bukan kepastian kartu lawan.")
+            recommendationTiles.removeAllViews()
+            if (best == null) {
+                advice.text = "Tidak ada kartu legal. Pertimbangkan PASS."
+                return
+            }
+
+            val suggestions = listOf(best) + result.alternatives.take(3)
+            suggestions.forEachIndexed { index, option ->
+                val item = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    gravity = android.view.Gravity.CENTER
                 }
+                item.addView(TextView(this).apply {
+                    text = if (index == 0) "UTAMA" else "ALT. $index"
+                    textSize = 11f
+                    setTextColor(darkRed)
+                    setTypeface(typeface, android.graphics.Typeface.BOLD)
+                })
+                item.addView(TileFaceView(option.move.tile), LinearLayout.LayoutParams(
+                    if (index == 0) dp(66) else dp(52),
+                    if (index == 0) dp(96) else dp(76)
+                ).apply { setMargins(dp(3), dp(6), dp(3), dp(6)) })
+                item.addView(TextView(this).apply {
+                    text = option.move.side.name
+                    textSize = 11f
+                    setTextColor(darkRed)
+                })
+                recommendationTiles.addView(item, LinearLayout.LayoutParams(
+                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f
+                ))
+            }
+
+            advice.text = buildString {
+                append("Skor strategi: ${"%.2f".format(best.score)}\n")
+                append("Tekanan lawan (estimasi): ${"%.0f".format(best.opponentPressure * 100)}%\n")
+                append("Peluang bisa bermain lagi (estimasi): ${"%.0f".format(best.futurePlayChance * 100)}%")
+                append("\nPrediksi adalah perkiraan, bukan kepastian kartu lawan.")
             }
         } catch (e: Exception) {
             advice.text = "Analisis belum dapat dilakukan: ${e.message}"
