@@ -186,7 +186,7 @@ class MainActivity : Activity() {
             background = roundedBackground(Color.WHITE, 10)
         }
         handPanel.addView(heading("KARTU SAYA", 15f))
-        handPanel.addView(handTileList())
+        handPanel.addView(tileGridSmall(hand.toList(), 3) { })
         val suggestionPanel = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(6), dp(8), dp(6), dp(8))
@@ -343,26 +343,50 @@ class MainActivity : Activity() {
                     gravity = android.view.Gravity.CENTER_VERTICAL
                     setPadding(dp(3), dp(4), dp(3), dp(4))
                 }
-                item.addView(TileFaceView(option.move.tile), LinearLayout.LayoutParams(
-                    dp(42), dp(62)
-                ).apply { setMargins(dp(2), dp(2), dp(6), dp(2)) })
-                val details = LinearLayout(this).apply {
+                val suggestedTile = option.move.tile
+                item.addView(TileFaceView(suggestedTile), LinearLayout.LayoutParams(
+                    dp(38), dp(56)
+                ).apply { setMargins(dp(2), dp(2), dp(5), dp(2)) })
+
+                // Side controls belong beside the recommended tile, not in the player's hand.
+                val sideChoices = LinearLayout(this).apply {
                     orientation = LinearLayout.VERTICAL
-                    setPadding(dp(2), 0, dp(2), 0)
+                    gravity = android.view.Gravity.CENTER_VERTICAL
                 }
-                details.addView(TextView(this).apply {
-                    text = if (index == 0) "UTAMA" else "ALT. $index"
-                    textSize = 11f
-                    setTextColor(darkRed)
-                    setTypeface(typeface, android.graphics.Typeface.BOLD)
-                })
-                details.addView(TextView(this).apply {
+                val canLeft = suggestedTile.contains(leftEnd)
+                val canRight = suggestedTile.contains(rightEnd)
+                if (canLeft) {
+                    sideChoices.addView(action("KIRI") {
+                        playSuggested(suggestedTile, Side.LEFT)
+                    }.apply {
+                        isEnabled = currentTurn == mySeat
+                        textSize = 10f
+                        minWidth = 0
+                        setPadding(dp(4), 0, dp(4), 0)
+                    }, LinearLayout.LayoutParams(dp(58), dp(30)).apply {
+                        setMargins(dp(1), dp(1), dp(1), dp(1))
+                    })
+                }
+                if (canRight) {
+                    sideChoices.addView(action("KANAN") {
+                        playSuggested(suggestedTile, Side.RIGHT)
+                    }.apply {
+                        isEnabled = currentTurn == mySeat
+                        textSize = 10f
+                        minWidth = 0
+                        setPadding(dp(4), 0, dp(4), 0)
+                    }, LinearLayout.LayoutParams(dp(58), dp(30)).apply {
+                        setMargins(dp(1), dp(1), dp(1), dp(1))
+                    })
+                }
+                item.addView(sideChoices)
+                recommendationTiles.addView(item)
+                recommendationTiles.addView(TextView(this).apply {
                     text = if (index == 0) "SARAN TERBAIK" else "ALTERNATIF $index"
                     textSize = 10f
                     setTextColor(darkRed)
+                    setPadding(dp(2), 0, 0, dp(3))
                 })
-                item.addView(details)
-                recommendationTiles.addView(item)
             }
 
             advice.text = buildString {
