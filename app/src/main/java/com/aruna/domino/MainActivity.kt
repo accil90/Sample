@@ -431,11 +431,20 @@ class MainActivity : Activity() {
                 item.addView(TileFaceView(suggestedTile), LinearLayout.LayoutParams(
                     dp(38), dp(56)
                 ).apply { setMargins(dp(2), dp(2), dp(5), dp(2)) })
+                item.isClickable = true
+                item.isFocusable = true
+                item.background = roundedBackground(0xFFFFE7EA.toInt(), 8)
+                item.contentDescription = "Mainkan kartu saran ${tileName(suggestedTile)}"
+                item.setOnClickListener {
+                    // Ketuk kartu rekomendasi untuk langsung memainkannya.
+                    // Jika cocok pada kedua ujung, fungsi ini menampilkan pilihan KIRI/KANAN.
+                    acceptPlayedTile(suggestedTile, true)
+                }
 
                 recommendationTiles.addView(item)
                 recommendationTiles.addView(TextView(this).apply {
-                    text = if (index == 0) "SARAN TERBAIK" else "ALTERNATIF $index"
-                    textSize = 10f
+                    text = if (index == 0) "SARAN TERBAIK • KETUK UNTUK MAIN" else "ALTERNATIF $index • KETUK UNTUK MAIN"
+                    textSize = 9f
                     setTextColor(darkRed)
                     setPadding(dp(2), 0, 0, dp(3))
                 })
