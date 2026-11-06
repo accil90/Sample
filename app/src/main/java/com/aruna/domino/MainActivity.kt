@@ -186,9 +186,7 @@ class MainActivity : Activity() {
             background = roundedBackground(Color.WHITE, 10)
         }
         handPanel.addView(heading("KARTU SAYA", 15f))
-        handPanel.addView(tileGridSmall(hand.toList(), 2) { tile ->
-            acceptPlayedTile(tile, true)
-        })
+        handPanel.addView(handTileList())
         val suggestionPanel = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(6), dp(8), dp(6), dp(8))
@@ -359,31 +357,11 @@ class MainActivity : Activity() {
                     setTypeface(typeface, android.graphics.Typeface.BOLD)
                 })
                 details.addView(TextView(this).apply {
-                    text = "Pilih sisi:"
+                    text = if (index == 0) "SARAN TERBAIK" else "ALTERNATIF $index"
                     textSize = 10f
                     setTextColor(darkRed)
                 })
-                item.addView(details, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-                val sideButtons = LinearLayout(this).apply {
-                    orientation = LinearLayout.VERTICAL
-                }
-                val leftButton = action("KIRI") {
-                    playSuggested(option.move.tile, Side.LEFT)
-                }.apply {
-                    isEnabled = currentTurn == mySeat && option.move.tile.contains(leftEnd)
-                    textSize = 10f
-                    setPadding(dp(4), 0, dp(4), 0)
-                }
-                val rightButton = action("KANAN") {
-                    playSuggested(option.move.tile, Side.RIGHT)
-                }.apply {
-                    isEnabled = currentTurn == mySeat && option.move.tile.contains(rightEnd)
-                    textSize = 10f
-                    setPadding(dp(4), 0, dp(4), 0)
-                }
-                sideButtons.addView(leftButton)
-                sideButtons.addView(rightButton)
-                item.addView(sideButtons)
+                item.addView(details)
                 recommendationTiles.addView(item)
             }
 
@@ -418,6 +396,45 @@ class MainActivity : Activity() {
                     setMargins(dp(3), dp(4), dp(3), dp(4))
                 }
                 addView(face, params)
+            }
+        }
+    }
+
+    private fun handTileList(): LinearLayout {
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            hand.sortedWith(compareBy<Tile> { it.low }.thenBy { it.high }).forEach { tile ->
+                val row = LinearLayout(this@MainActivity).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = android.view.Gravity.CENTER_VERTICAL
+                    setPadding(0, dp(2), 0, dp(2))
+                }
+                row.addView(TileFaceView(tile), LinearLayout.LayoutParams(dp(38), dp(56)).apply {
+                    setMargins(dp(2), dp(2), dp(5), dp(2))
+                })
+                val leftButton = action("KIRI") {
+                    playSuggested(tile, Side.LEFT)
+                }.apply {
+                    isEnabled = currentTurn == mySeat && tile.contains(leftEnd)
+                    textSize = 10f
+                    minWidth = 0
+                    setPadding(dp(3), 0, dp(3), 0)
+                }
+                val rightButton = action("KANAN") {
+                    playSuggested(tile, Side.RIGHT)
+                }.apply {
+                    isEnabled = currentTurn == mySeat && tile.contains(rightEnd)
+                    textSize = 10f
+                    minWidth = 0
+                    setPadding(dp(3), 0, dp(3), 0)
+                }
+                row.addView(leftButton, LinearLayout.LayoutParams(0, dp(40), 1f).apply {
+                    setMargins(dp(2), 0, dp(2), 0)
+                })
+                row.addView(rightButton, LinearLayout.LayoutParams(0, dp(40), 1f).apply {
+                    setMargins(dp(2), 0, dp(2), 0)
+                })
+                addView(row)
             }
         }
     }
