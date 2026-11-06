@@ -68,6 +68,7 @@ class MainActivity : Activity() {
         root.addView(TextView(this).apply { text = "Ketuk satu kartu yang menjadi pembuka di meja." })
         val openingGrid = tileGrid(allTiles, 4) { tile ->
             opening = tile
+            hand.remove(tile)
             showSetup()
         }
         root.addView(openingGrid)
@@ -254,7 +255,7 @@ class MainActivity : Activity() {
         }
     }
 
-    private class TileFaceView(private val tile: Tile) : View(this@MainActivity) {
+    private inner class TileFaceView(private val tile: Tile) : View(this@MainActivity) {
         private val border = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFF202020.toInt(); style = Paint.Style.STROKE; strokeWidth = 2f }
         private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFFFFDF7.toInt(); style = Paint.Style.FILL }
         private val dot = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFF171717.toInt(); style = Paint.Style.FILL }
