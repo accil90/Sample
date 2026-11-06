@@ -34,6 +34,15 @@ class MainActivity : Activity() {
     private var leftEnd = 0
     private var rightEnd = 0
     private var started = false
+    private data class MoveSnapshot(
+        val leftEnd: Int,
+        val rightEnd: Int,
+        val currentTurn: Int,
+        val hand: Set<Tile>,
+        val played: Set<Tile>,
+        val passes: List<PassRecord>
+    )
+    private var lastMoveSnapshot: MoveSnapshot? = null
     private var pendingTile: Tile? = null
     private var pendingIsOwn = false
     private var currentPicker: ((Tile) -> Unit)? = null
@@ -85,6 +94,7 @@ class MainActivity : Activity() {
 
     private fun showSetup() {
         started = false
+        lastMoveSnapshot = null
         clear()
 
         root.addView(heading("PILIH PEMBUKA", 21f))
@@ -161,6 +171,9 @@ class MainActivity : Activity() {
         root.addView(heading("ARUNA DOMINO PRO", 23f))
         status = heading("Ujung meja: kiri $leftEnd  |  kanan $rightEnd", 18f)
         root.addView(status)
+        if (lastMoveSnapshot != null) {
+            root.addView(action("UNDO — batalkan kartu terakhir") { undoLastMove() })
+        }
         root.addView(heading("Giliran: MEJA $currentTurn" + if (currentTurn == mySeat) " (SAYA)" else " (LAWAN)", 17f))
         handSummary = TextView(this).apply {
             textSize = 15f
@@ -337,6 +350,14 @@ class MainActivity : Activity() {
     }
 
     private fun commitTile(tile: Tile, side: Side, isOwn: Boolean) {
+        lastMoveSnapshot = MoveSnapshot(
+            leftEnd = leftEnd,
+            rightEnd = rightEnd,
+            currentTurn = currentTurn,
+            hand = hand.toSet(),
+            played = played.toSet(),
+            passes = passes.toList()
+        )
         val exposed = if (side == Side.LEFT) leftEnd else rightEnd
         val newEnd = tile.otherEnd(exposed) ?: exposed
         if (side == Side.LEFT) leftEnd = newEnd else rightEnd = newEnd
@@ -351,6 +372,22 @@ class MainActivity : Activity() {
         } else {
             "Meja $playedBy memainkan ${tileName(tile)} di ${side.name}. Posisi meja diperbarui. Giliran Meja $currentTurn."
         }
+    }
+
+    private fun undoLastMove() {
+        val snapshot = lastMoveSnapshot ?: return
+        leftEnd = snapshot.leftEnd
+        rightEnd = snapshot.rightEnd
+        currentTurn = snapshot.currentTurn
+        hand.clear()
+        hand.addAll(snapshot.hand)
+        played.clear()
+        played.addAll(snapshot.played)
+        passes.clear()
+        passes.addAll(snapshot.passes)
+        lastMoveSnapshot = null
+        showGame()
+        advice.text = "Kartu terakhir dibatalkan. Posisi meja dan kartu tangan sudah dipulihkan."
     }
 
     private fun analyze() {
