@@ -5,6 +5,9 @@ import android.os.Bundle
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
+import android.content.res.ColorStateList
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
@@ -39,25 +42,40 @@ class MainActivity : Activity() {
     private lateinit var advice: TextView
     private lateinit var handSummary: TextView
 
+    private val red = Color.rgb(190, 35, 55)
+    private val darkRed = Color.rgb(130, 20, 38)
+    private val pale = Color.rgb(255, 244, 245)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         title = "ARUNA DOMINO PRO"
         root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(20, 20, 20, 20)
+            setPadding(dp(16), dp(14), dp(16), dp(24))
+            setBackgroundColor(Color.rgb(250, 247, 247))
         }
-        setContentView(ScrollView(this).apply { addView(root) })
+        setContentView(ScrollView(this).apply {
+            setBackgroundColor(Color.rgb(250, 247, 247))
+            addView(root)
+        })
         showSetup()
     }
 
     private fun heading(text: String, size: Float = 20f) = TextView(this).apply {
         this.text = text
         textSize = size
-        setPadding(0, 12, 0, 8)
+        setTextColor(darkRed)
+        setTypeface(typeface, android.graphics.Typeface.BOLD)
+        setPadding(0, dp(14), 0, dp(8))
     }
 
     private fun action(text: String, onClick: () -> Unit) = Button(this).apply {
         this.text = text
+        textSize = 14f
+        isAllCaps = false
+        setTextColor(Color.WHITE)
+        backgroundTintList = ColorStateList.valueOf(red)
+        setPadding(dp(12), dp(8), dp(12), dp(8))
         setOnClickListener { onClick() }
     }
 
@@ -66,46 +84,57 @@ class MainActivity : Activity() {
     private fun showSetup() {
         started = false
         clear()
-        root.addView(heading("ARUNA DOMINO PRO"))
-        root.addView(heading("1. Atur posisi pemain (4 pemain)", 17f))
+        root.addView(heading("ARUNA DOMINO PRO", 23f))
+        root.addView(TextView(this).apply {
+            text = "Atur tempat duduk dan kartu sebelum mulai."
+            textSize = 14f
+            setTextColor(Color.DKGRAY)
+        })
+        root.addView(heading("1. Posisi pemain", 17f))
         root.addView(TextView(this).apply { text = "Pilih posisi dudukmu:" })
         (1..4).forEach { seat ->
-            root.addView(action(if (mySeat == seat) "✓ SAYA MEJA $seat" else "SAYA MEJA $seat") {
+            root.addView(action(if (mySeat == seat) "✓ SAYA — MEJA $seat" else "SAYA — MEJA $seat") {
                 mySeat = seat
                 showSetup()
             })
         }
-        root.addView(TextView(this).apply { text = "Siapa yang menurunkan kartu pembuka?" })
+        root.addView(TextView(this).apply {
+            text = "Siapa yang menurunkan kartu pembuka?"
+            setPadding(0, dp(8), 0, 0)
+        })
         (1..4).forEach { seat ->
-            root.addView(action(if (openingSeat == seat) "✓ PEMBUKA MEJA $seat" else "PEMBUKA MEJA $seat") {
+            root.addView(action(if (openingSeat == seat) "✓ PEMBUKA — MEJA $seat" else "PEMBUKA — MEJA $seat") {
                 openingSeat = seat
                 showSetup()
             })
         }
         root.addView(heading("2. Pilih kartu pembuka", 17f))
-        root.addView(TextView(this).apply { text = "Ketuk satu kartu yang menjadi pembuka di meja." })
-        val openingGrid = tileGrid(allTiles, 4) { tile ->
+        root.addView(TextView(this).apply { text = "Ketuk satu kartu domino." })
+        root.addView(tileGrid(allTiles, 4) { tile ->
             opening = tile
             hand.remove(tile)
             showSetup()
-        }
-        root.addView(openingGrid)
-        root.addView(TextView(this).apply {
-            text = "Pembuka terpilih: ${opening?.let { tileName(it) } ?: "belum dipilih"}"
-            textSize = 16f
         })
-        root.addView(heading("3. Pilih semua kartu di tanganmu", 17f))
         root.addView(TextView(this).apply {
-            text = "Ketuk kartu untuk memilih atau membatalkan pilihan. Kartu pembuka tidak dapat dipilih sebagai kartu tangan."
+            text = "Pembuka: ${opening?.let { tileName(it) } ?: "belum dipilih"}"
+            textSize = 15f
+            setTextColor(darkRed)
+            setPadding(0, dp(6), 0, 0)
         })
-        val handGrid = tileGrid(allTiles.filter { it != opening && it !in played }, 4) { tile ->
+        root.addView(heading("3. Pilih kartu di tanganmu", 17f))
+        root.addView(TextView(this).apply {
+            text = "Ketuk kartu untuk memilih atau membatalkan pilihan. Kartu pembuka tidak bisa dipilih lagi."
+            textSize = 14f
+        })
+        root.addView(tileGrid(allTiles.filter { it != opening && it !in played }, 4) { tile ->
             if (tile in hand) hand.remove(tile) else hand.add(tile)
             showSetup()
-        }
-        root.addView(handGrid)
+        })
         root.addView(TextView(this).apply {
-            text = "Kartu tangan dipilih: ${hand.size}"
-            textSize = 16f
+            text = "Jumlah kartu pilihan: ${hand.size}"
+            textSize = 15f
+            setTextColor(darkRed)
+            setPadding(0, dp(8), 0, dp(8))
         })
         root.addView(action("MULAI PERMAINAN") {
             val startTile = opening
@@ -128,30 +157,38 @@ class MainActivity : Activity() {
 
     private fun showGame() {
         clear()
-        root.addView(heading("ARUNA DOMINO PRO"))
-        status = heading("Meja: kiri $leftEnd  |  kanan $rightEnd", 18f)
-        root.addView(heading("Giliran: MEJA $currentTurn" + if (currentTurn == mySeat) " (SAYA)" else " (LAWAN)", 18f))
+        root.addView(heading("ARUNA DOMINO PRO", 23f))
+        status = heading("Ujung meja: kiri $leftEnd  |  kanan $rightEnd", 18f)
         root.addView(status)
-        handSummary = TextView(this).apply { textSize = 15f }
+        root.addView(heading("Giliran: MEJA $currentTurn" + if (currentTurn == mySeat) " (SAYA)" else " (LAWAN)", 17f))
+        handSummary = TextView(this).apply {
+            textSize = 15f
+            setTextColor(darkRed)
+            setPadding(0, dp(4), 0, dp(8))
+        }
         root.addView(handSummary)
         updateHandSummary()
         root.addView(TextView(this).apply {
-            textSize = 14f
-            text = "Posisi saya: Meja $mySeat | Pembuka: Meja $openingSeat\\nRiwayat kartu: " + played.joinToString("  ") { tileName(it) } + "\\nRiwayat PASS: " + passes.size
-            setPadding(0, 8, 0, 8)
+            textSize = 13f
+            setTextColor(Color.DKGRAY)
+            text = "Posisi saya: Meja $mySeat | Pembuka: Meja $openingSeat\nRiwayat kartu: " + played.joinToString("  ") { tileName(it) } + "\nRiwayat PASS: " + passes.size
+            setPadding(0, dp(8), 0, dp(8))
         })
 
-        root.addView(action("SARAN KARTU SAYA") { analyze() })
+        root.addView(action("LIHAT SARAN KARTU") { analyze() })
         advice = TextView(this).apply {
-            textSize = 16f
-            setPadding(0, 8, 0, 12)
-            text = "Tekan SARAN KARTU SAYA untuk melihat rekomendasi."
+            textSize = 15f
+            setTextColor(darkRed)
+            setPadding(dp(10), dp(10), dp(10), dp(12))
+            background = roundedBackground(pale, 10)
+            text = "Tekan tombol saran untuk melihat pilihan strategi."
         }
         root.addView(advice)
 
-        root.addView(heading("Kartu yang baru dimainkan lawan", 17f))
+        root.addView(heading("Kartu yang dimainkan lawan", 17f))
         root.addView(TextView(this).apply {
-            text = "Pilih gambar kartu lawan. Jika cocok di kedua ujung, pilih KIRI atau KANAN."
+            text = "Pilih kartu yang baru saja diturunkan lawan."
+            textSize = 14f
         })
         root.addView(tileGrid(allTiles.filter { it !in played && it !in hand }, 4) { tile ->
             acceptPlayedTile(tile, false)
@@ -168,7 +205,7 @@ class MainActivity : Activity() {
             showGame()
             advice.text = "PASS Meja $passedSeat dicatat. Giliran berikutnya Meja $currentTurn."
         })
-        root.addView(action("AKHIRI / ATUR ULANG PERMAINAN") {
+        root.addView(action("AKHIRI / ATUR ULANG") {
             hand.clear()
             played.clear()
             opening = null
@@ -212,8 +249,8 @@ class MainActivity : Activity() {
             text = "Kartu ${tileName(tile)} bisa dipasang di kedua ujung meja."
             textSize = 17f
         })
-        root.addView(action("KIRI  (ujung $leftEnd)") { commitTile(tile, Side.LEFT, pendingIsOwn) })
-        root.addView(action("KANAN  (ujung $rightEnd)") { commitTile(tile, Side.RIGHT, pendingIsOwn) })
+        root.addView(action("PASANG DI KIRI  (ujung $leftEnd)") { commitTile(tile, Side.LEFT, pendingIsOwn) })
+        root.addView(action("PASANG DI KANAN  (ujung $rightEnd)") { commitTile(tile, Side.RIGHT, pendingIsOwn) })
         root.addView(action("BATAL") { showGame() })
     }
 
@@ -272,18 +309,29 @@ class MainActivity : Activity() {
     private fun tileGrid(tiles: List<Tile>, columns: Int, onSelect: (Tile) -> Unit): GridLayout {
         return GridLayout(this).apply {
             columnCount = columns
+            alignmentMode = GridLayout.ALIGN_BOUNDS
+            useDefaultMargins = false
             tiles.forEach { tile ->
                 val face = TileFaceView(tile).apply {
                     contentDescription = tileName(tile)
                     setOnClickListener { onSelect(tile) }
                 }
-                addView(face, ViewGroup.LayoutParams(dp(68), dp(48)))
+                val params = GridLayout.LayoutParams().apply {
+                    width = dp(54)
+                    height = dp(78)
+                    setMargins(dp(3), dp(4), dp(3), dp(4))
+                }
+                addView(face, params)
             }
         }
     }
 
-    private fun nextSeat(seat: Int) = (seat % 4) + 1
+    private fun roundedBackground(color: Int, radius: Int) = GradientDrawable().apply {
+        setColor(color)
+        cornerRadius = dp(radius).toFloat()
+    }
 
+    private fun nextSeat(seat: Int) = (seat % 4) + 1
     private fun tileName(tile: Tile) = "${tile.low}|${tile.high}"
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
 
@@ -296,24 +344,37 @@ class MainActivity : Activity() {
     }
 
     private inner class TileFaceView(private val tile: Tile) : View(this@MainActivity) {
-        private val border = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFF202020.toInt(); style = Paint.Style.STROKE; strokeWidth = 2f }
-        private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFFFFDF7.toInt(); style = Paint.Style.FILL }
-        private val dot = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFF171717.toInt(); style = Paint.Style.FILL }
-        private val line = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFF777777.toInt(); strokeWidth = 1.5f }
+        private val border = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = 0xFFB71C35.toInt()
+            style = Paint.Style.STROKE
+            strokeWidth = 2.5f
+        }
+        private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = 0xFFFFF5F5.toInt()
+            style = Paint.Style.FILL
+        }
+        private val dot = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = 0xFFC62842.toInt()
+            style = Paint.Style.FILL
+        }
+        private val line = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = 0xFFE5A0AA.toInt()
+            strokeWidth = 1.8f
+        }
 
         override fun onDraw(canvas: Canvas) {
             super.onDraw(canvas)
             val r = RectF(3f, 3f, width - 3f, height - 3f)
-            canvas.drawRoundRect(r, 7f, 7f, fill)
-            canvas.drawRoundRect(r, 7f, 7f, border)
-            canvas.drawLine(width / 2f, 6f, width / 2f, height - 6f, line)
-            drawPips(canvas, tile.low, width * 0.25f, height * 0.5f)
-            drawPips(canvas, tile.high, width * 0.75f, height * 0.5f)
+            canvas.drawRoundRect(r, 8f, 8f, fill)
+            canvas.drawRoundRect(r, 8f, 8f, border)
+            canvas.drawLine(7f, height / 2f, width - 7f, height / 2f, line)
+            drawPips(canvas, tile.low, width * 0.5f, height * 0.25f)
+            drawPips(canvas, tile.high, width * 0.5f, height * 0.75f)
         }
 
         private fun drawPips(canvas: Canvas, value: Int, cx: Float, cy: Float) {
             if (value == 0) return
-            val d = minOf(width, height) * 0.085f
+            val d = minOf(width, height) * 0.075f
             val offsets = when (value) {
                 1 -> listOf(0f to 0f)
                 2 -> listOf(-1f to -1f, 1f to 1f)
