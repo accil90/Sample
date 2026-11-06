@@ -162,8 +162,8 @@ class MainActivity : Activity() {
             acceptPlayedTile(tile, true)
         })
         root.addView(action(if (currentTurn == mySeat) "SAYA PASS" else "MEJA $currentTurn PASS") {
-            passes.add(PassRecord(currentTurn, leftEnd, rightEnd, played.size))
             val passedSeat = currentTurn
+            if (passedSeat != mySeat) passes.add(PassRecord(passedSeat, leftEnd, rightEnd, played.size))
             currentTurn = nextSeat(currentTurn)
             showGame()
             advice.text = "PASS Meja $passedSeat dicatat. Giliran berikutnya Meja $currentTurn."
