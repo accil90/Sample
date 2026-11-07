@@ -278,6 +278,10 @@ class MainActivity : Activity() {
             showSetup()
         })
 
+        root.addView(action("PENGAMAT LAYAR & REKAMAN") {
+            startActivity(android.content.Intent(this, ObserverActivity::class.java))
+        })
+
         // Generate recommendations automatically whenever the game screen appears.
         analyze()
     }
