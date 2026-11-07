@@ -177,8 +177,10 @@ class ObserverActivity : Activity() {
                 appendLine()
                 appendLine("Kirim laporan ini bersama screenshot satu frame yang menampilkan kartu tangan dan meja untuk kalibrasi deteksi.")
             }
+            val reportFile = File(path.removeSuffix(".mp4") + "_ANALISIS.txt")
+            try { reportFile.writeText(result) } catch (_: Exception) {}
             runOnUiThread {
-                reportView.text = result
+                reportView.text = result + "\\n\\nFile laporan: " + reportFile.absolutePath
                 statusView.text = "Analisis teks selesai. Tekan SALIN LAPORAN TEKS untuk mengirim hasil."
             }
         }.start()
