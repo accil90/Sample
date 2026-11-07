@@ -14,6 +14,8 @@ import android.media.projection.MediaProjectionManager
 import android.os.Build
 import android.os.Environment
 import android.os.IBinder
+import android.os.Handler
+import android.os.Looper
 import android.util.DisplayMetrics
 import android.view.WindowManager
 import java.io.File
@@ -23,6 +25,9 @@ class ScreenRecordService : Service() {
     private var projection: MediaProjection? = null
     private var display: VirtualDisplay? = null
     private var outputPath: String? = null
+    private val projectionCallback = object : MediaProjection.Callback() {
+        override fun onStop() { finishRecording() }
+    }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -83,6 +88,7 @@ class ScreenRecordService : Service() {
         projection = manager.getMediaProjection(resultCode, resultData)
             ?: throw IllegalStateException("MediaProjection tidak tersedia")
 
+        projection!!.registerCallback(projectionCallback, Handler(Looper.getMainLooper()))
         val metrics = DisplayMetrics()
         @Suppress("DEPRECATION")
         (getSystemService(WINDOW_SERVICE) as WindowManager).defaultDisplay.getRealMetrics(metrics)
@@ -126,6 +132,7 @@ class ScreenRecordService : Service() {
             display = null
             try { recorder?.reset(); recorder?.release() } catch (_: Exception) {}
             recorder = null
+            try { projection?.unregisterCallback(projectionCallback) } catch (_: Exception) {}
             try { projection?.stop() } catch (_: Exception) {}
             projection = null
             stopForeground(STOP_FOREGROUND_REMOVE)
